@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Stresstest - Circuitz Example</title>
+    <script type="module">
+      import Simulation from '../dist/Simulation.js'
+      import Circuit from '../dist/Circuit.js'
+      import AndExample from '../dist/circuits/examples/AndExample.js'
+      import DemuxExample from '../dist/circuits/examples/DemuxExample.js'
+      import McExample from '../dist/circuits/examples/McExample.js'
+      import MuxExample from '../dist/circuits/examples/MuxExample.js'
+      import NandExample from '../dist/circuits/examples/NandExample.js'
+      import NorExample from '../dist/circuits/examples/NorExample.js'
+      import NotExample from '../dist/circuits/examples/NotExample.js'
+      import OrExample from '../dist/circuits/examples/OrExample.js'
+      import XnorExample from '../dist/circuits/examples/XnorExample.js'
+      import XorExample from '../dist/circuits/examples/XorExample.js'
+
+      class Everything extends Circuit {
+        constructor(x, y) {
+          super({
+            bounds: new DOMRect(x, y, 179, 94),
+            backgroundColor: '#333',
+          })
+
+          this.addChild(new AndExample(0, 0))
+          this.addChild(new AndExample(0, 15))
+          this.addChild(new AndExample(0, 30))
+          this.addChild(new AndExample(0, 45))
+          this.addChild(new AndExample(0, 60))
+          this.addChild(new DemuxExample(15, 0))
+          this.addChild(new DemuxExample(15, 39))
+          this.addChild(new McExample(38, 0))
+          this.addChild(new McExample(38, 10))
+          this.addChild(new McExample(38, 20))
+          this.addChild(new McExample(38, 30))
+          this.addChild(new McExample(38, 40))
+          this.addChild(new McExample(38, 50))
+          this.addChild(new McExample(38, 60))
+          this.addChild(new McExample(38, 70))
+          this.addChild(new MuxExample(63, 0))
+          this.addChild(new MuxExample(63, 39))
+          this.addChild(new NandExample(84, 0))
+          this.addChild(new NandExample(84, 15))
+          this.addChild(new NandExample(84, 30))
+          this.addChild(new NandExample(84, 45))
+          this.addChild(new NandExample(84, 60))
+          this.addChild(new NorExample(91, 0))
+          this.addChild(new NorExample(91, 31))
+          this.addChild(new NotExample(110, 0))
+          this.addChild(new NotExample(110, 7))
+          this.addChild(new NotExample(110, 14))
+          this.addChild(new NotExample(110, 21))
+          this.addChild(new NotExample(110, 28))
+          this.addChild(new NotExample(110, 35))
+          this.addChild(new NotExample(110, 42))
+          this.addChild(new NotExample(110, 49))
+          this.addChild(new NotExample(110, 56))
+          this.addChild(new NotExample(110, 63))
+          this.addChild(new NotExample(110, 70))
+          this.addChild(new NotExample(110, 77))
+          this.addChild(new OrExample(121, 0))
+          this.addChild(new OrExample(121, 31))
+          this.addChild(new XnorExample(136, 0))
+          this.addChild(new XnorExample(136, 47))
+          this.addChild(new XorExample(159, 0))
+          this.addChild(new XorExample(159, 31))
+          this.addChild(new XorExample(159, 62))
+        }
+      }
+
+      class Stresstest extends Circuit {
+        constructor(x, y) {
+          super({ bounds: new DOMRect(x, y, 2 * 179, 2 * 94) })
+
+          this.addChild(new Everything(0, 0))
+          this.addChild(new Everything(0, 94))
+          this.addChild(new Everything(179, 0))
+          this.addChild(new Everything(179, 94))
+
+          this.setAllGridSizes(6)
+        }
+      }
+
+      new Simulation({
+        circuit: new Stresstest(10, 10),
+        canvas: document.getElementById('display'),
+        gridSize: 6,
+        showFps: true,
+      }).start()
+    </script>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #000;
+        height: 100vh;
+        color: white;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="display"></canvas>
+  </body>
+</html>

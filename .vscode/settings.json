@@ -1,0 +1,7 @@
+{
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "typescript.experimental.expandableHover": true,
+  "typescript.tsdk": "node_modules\\typescript\\lib"
+}
