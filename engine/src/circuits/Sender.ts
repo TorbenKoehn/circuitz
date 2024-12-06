@@ -1,26 +1,58 @@
 import Circuit from '../Circuit.js'
+import Keyboard from '../Keyboard.js'
 import Port from '../Port.js'
+import { DrawArgs } from '../utils.js'
+
+export type SenderInit<Value> = {
+  readonly position: DOMPoint
+  readonly value: Value
+  readonly clearValue: Value
+  readonly keyboardKey?: string
+}
 
 export default class Sender<Value> extends Circuit {
   readonly value: Value
   readonly p0: Port<Value>
+  readonly keyboardKey: string | undefined
 
-  constructor(x: number, y: number, value: Value) {
+  constructor(init: SenderInit<Value>) {
     super({
-      bounds: new DOMRect(x, y, 1, 1),
+      bounds: new DOMRect(init.position.x, init.position.y, 1, 1),
     })
 
-    this.value = value
+    this.value = init.value
     this.p0 = new Port({
       position: new DOMPoint(0, 0),
-      access: ['send'],
+      clearValue: init.clearValue,
     })
+    this.keyboardKey = init.keyboardKey
+
     this.addPort(this.p0)
   }
 
-  tick() {
-    super.tick()
+  update() {
+    super.update()
+    if (!this.keyboardKey || Keyboard.isDown(this.keyboardKey)) {
+      this.p0.write(this.value)
+    }
+  }
 
-    this.p0.send(this.value)
+  draw(args: DrawArgs): void {
+    super.draw(args)
+
+    const context = args.context
+    const bounds = this.absolutePixelBounds
+
+    // If a key is set, draw the key name below the port
+    if (this.keyboardKey) {
+      context.fillStyle = 'white'
+      context.textAlign = 'center'
+      context.font = '12px monospace'
+      context.fillText(
+        this.keyboardKey,
+        bounds.x + bounds.width / 2,
+        bounds.y + bounds.height + 12
+      )
+    }
   }
 }

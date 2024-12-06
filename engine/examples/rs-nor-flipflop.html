@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>RS Flip-Flop - Circuitz Example</title>
+    <script type="module">
+      import Simulation from '../dist/Simulation.js'
+      import RsNorFlipFlopExample from '../dist/circuits/examples/RsNorFlipFlopExample.js'
+
+      new Simulation({
+        circuit: new RsNorFlipFlopExample(2, 2),
+        canvas: document.getElementById('display'),
+        showFps: true,
+      }).start()
+    </script>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #000;
+        height: 100vh;
+        color: white;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="display"></canvas>
+  </body>
+</html>

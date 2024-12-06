@@ -4,11 +4,11 @@ import { DrawArgs } from '../../utils.js'
 
 export default class NandGate<Value> extends Circuit {
   readonly value: Value
-  readonly in0: Port<number>
-  readonly in1: Port<number>
+  readonly in0: Port<Value>
+  readonly in1: Port<Value>
   readonly out: Port<Value>
 
-  constructor(x: number, y: number, value: Value) {
+  constructor(x: number, y: number, value: Value, clearValue: Value) {
     super({
       bounds: new DOMRect(x, y, 3, 3),
     })
@@ -16,29 +16,30 @@ export default class NandGate<Value> extends Circuit {
     this.value = value
     this.in0 = new Port({
       position: new DOMPoint(0, 0),
-      access: ['receive'],
-      lifeTime: 200,
+      clearValue,
     })
     this.in1 = new Port({
       position: new DOMPoint(0, 2),
-      access: ['receive'],
-      lifeTime: 200,
+      clearValue,
     })
     this.out = new Port({
       position: new DOMPoint(2, 1),
-      access: ['send'],
-      lifeTime: 200,
+      clearValue,
     })
     this.addPort(this.in0)
     this.addPort(this.in1)
     this.addPort(this.out)
   }
 
-  tick() {
-    super.tick()
+  update() {
+    super.update()
 
-    if (!(this.in0.dataAvailable && this.in1.dataAvailable)) {
-      this.out.send(this.value)
+    if (this.in0.isClear() || this.in1.isClear()) {
+      this.in0.read()
+      this.in1.read()
+      this.out.write(this.value)
+    } else {
+      this.out.clear()
     }
   }
 

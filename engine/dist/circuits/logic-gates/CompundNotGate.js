@@ -6,7 +6,7 @@ export default class CompoundNotGate extends Circuit {
     in;
     nand;
     out;
-    constructor(x, y, value) {
+    constructor(x, y, value, clearValue) {
         super({
             bounds: new DOMRect(x, y, 7, 3),
             backgroundColor: '#555',
@@ -14,14 +14,12 @@ export default class CompoundNotGate extends Circuit {
         this.value = value;
         this.in = new Port({
             position: new DOMPoint(0, 1),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
-        this.nand = new NandGate(2, 0, value);
+        this.nand = new NandGate(2, 0, value, clearValue);
         this.out = new Port({
             position: new DOMPoint(6, 1),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.addPort(this.in);
         this.addPort(this.out);

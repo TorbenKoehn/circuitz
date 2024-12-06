@@ -1,19 +1,14 @@
 import Circuit from './Circuit.js'
-import PortConnection from './PortConnection.js'
+import Connection, {
+  ConnectionInit,
+  ConnectionLineStyle,
+} from './Connection.js'
 import { DrawArgs } from './utils.js'
 
-export type PortAccess = 'read' | 'write' | 'receive' | 'send'
-
-export type PortInit = {
-  position: DOMPoint
-  lifeTime?: number
-  bufferSize?: number
-  access?: PortAccess[]
-}
-
-export type BufferItem<Value> = {
-  readonly receiveTime: number
-  readonly value: Value
+export type PortInit<Value> = {
+  readonly position: DOMPoint
+  readonly clearValue: Value
+  readonly lifeTime?: number
 }
 
 export default class Port<Value> {
@@ -23,55 +18,24 @@ export default class Port<Value> {
   #absoluteBounds: DOMRect = new DOMRect(0, 0, 0, 0)
   #absolutePixelBounds: DOMRect = new DOMRect(0, 0, 0, 0)
 
-  #access: PortAccess[]
+  #clearValue: Value
+  #value: Value
 
-  #lifeTime: number
-  #bufferSize: number
-  #buffer: BufferItem<Value>[]
-
-  #connections: PortConnection<Value>[] = []
+  #outboundConnections: Map<Port<Value>, Connection<Value>> = new Map()
+  #inboundConnections: Map<Port<Value>, Connection<Value>> = new Map()
 
   #lastReadTime: number = -Infinity
-  #lastReadValue: Value | undefined = undefined
   #lastWriteTime: number = -Infinity
-  #lastWriteValue: Value | undefined = undefined
-  #lastSendTime: number = -Infinity
-  #lastSendValue: Value | undefined = undefined
-  #lastReceiveTime: number = -Infinity
-  #lastReceiveValue: Value | undefined = undefined
 
-  constructor(init: PortInit) {
+  constructor(init: PortInit<Value>) {
     this.#position = init.position
-
-    this.#access = init.access ?? []
-
-    this.#lifeTime = init.lifeTime ?? Infinity
-    this.#bufferSize = init.bufferSize ?? 1
-    this.#buffer = []
-
-    this.#connections = []
+    this.#clearValue = init.clearValue
+    this.#value = init.clearValue
+    this.#outboundConnections = new Map()
   }
 
   get circuit(): Circuit | undefined {
     return this.#circuit
-  }
-
-  set circuit(value: Circuit | undefined) {
-    if (value && this.#circuit && this.#circuit !== value) {
-      this.#circuit.removePort(this)
-    }
-
-    if (!value && this.#circuit && this.#circuit.hasPort(this)) {
-      this.#circuit.removePort(this)
-    }
-
-    if (this.#circuit !== value) {
-      this.#circuit = value
-    }
-
-    if (value && !value.hasPort(this)) {
-      value.addPort(this)
-    }
   }
 
   get position(): DOMPoint {
@@ -86,44 +50,16 @@ export default class Port<Value> {
     return this.#absolutePixelBounds
   }
 
-  get access(): PortAccess[] {
-    return this.#access
+  get clearValue(): Value {
+    return this.#clearValue
   }
 
-  get lifeTime(): number {
-    return this.#lifeTime
+  get value(): Value {
+    return this.#value
   }
 
-  get bufferSize(): number {
-    return this.#bufferSize
-  }
-
-  get buffer(): ReadonlyArray<BufferItem<Value>> {
-    return this.#buffer
-  }
-
-  get connections(): ReadonlyArray<PortConnection<Value>> {
-    return this.#connections
-  }
-
-  get canRead() {
-    return this.#access.includes('read')
-  }
-
-  get canWrite() {
-    return this.#access.includes('write')
-  }
-
-  get canReceive() {
-    return this.#access.includes('receive')
-  }
-
-  get canSend() {
-    return this.#access.includes('send')
-  }
-
-  get dataAvailable() {
-    return this.#buffer.length > 0
+  get connections(): ReadonlyMap<Port<Value>, Connection<Value>> {
+    return this.#outboundConnections
   }
 
   get lastReadElapsedTime() {
@@ -134,26 +70,43 @@ export default class Port<Value> {
     return performance.now() - this.#lastWriteTime
   }
 
-  get lastSendElapsedTime() {
-    return performance.now() - this.#lastSendTime
-  }
+  setCircuit(circuit: Circuit | undefined) {
+    if (circuit && this.#circuit && this.#circuit !== circuit) {
+      this.#circuit.removePort(this)
+    }
 
-  get lastReceiveElapsedTime() {
-    return performance.now() - this.#lastReceiveTime
+    if (!circuit && this.#circuit && this.#circuit.hasPort(this)) {
+      this.#circuit.removePort(this)
+    }
+
+    if (this.#circuit !== circuit) {
+      this.#circuit = circuit
+    }
+
+    if (circuit && !circuit.hasPort(this)) {
+      circuit.addPort(this)
+    }
   }
 
   isConnected(targetPort: Port<Value>) {
-    return this.#connections.some(
-      (connection) => connection.target === targetPort
-    )
+    return this.#outboundConnections.has(targetPort)
   }
 
-  connect(targetPort: Port<Value>) {
+  connect(
+    targetPort: Port<Value>,
+    init?: Omit<ConnectionInit<Value>, 'source' | 'target'>
+  ) {
     if (this.isConnected(targetPort)) {
       return
     }
 
-    this.#connections.push(new PortConnection(this, targetPort))
+    const connection = new Connection({
+      source: this,
+      target: targetPort,
+      ...init,
+    })
+    this.#outboundConnections.set(targetPort, connection)
+    targetPort.#inboundConnections.set(this, connection)
   }
 
   link(targetPort: Port<Value>) {
@@ -162,115 +115,43 @@ export default class Port<Value> {
   }
 
   disconnect(targetPort: Port<Value>) {
-    const index = this.#connections.findIndex(
-      (connection) => connection.target === targetPort
-    )
+    this.#outboundConnections.delete(targetPort)
+    targetPort.#inboundConnections.delete(this)
+  }
 
-    if (index === -1) {
-      return
-    }
+  isClear(): boolean {
+    return this.#value === this.#clearValue
+  }
 
-    this.#connections.splice(index, 1)
+  clear(): void {
+    this.#value = this.#clearValue
   }
 
   read(): Value {
-    if (!this.canRead) {
-      throw new Error(`Port is not readable.`)
-    }
-
-    if (!this.dataAvailable) {
-      throw new Error('No data available')
-    }
-
-    const item = this.#buffer.shift()
-    if (item === undefined) {
-      throw new Error('No data available')
-    }
-
-    this.#lastReadTime = performance.now()
-    this.#lastReadValue = item.value
-
-    return item.value
-  }
-
-  readAll(): Value[] {
-    if (!this.canRead) {
-      throw new Error(`Port is not readable.`)
-    }
-
-    if (!this.dataAvailable) {
-      throw new Error('No data available')
-    }
-
-    const states = this.#buffer
-    this.#buffer = []
-
-    this.#lastReadTime = performance.now()
-    this.#lastReadValue = states[states.length - 1].value
-
-    return states.map((item) => item.value)
+    return this.#value
   }
 
   write(value: Value) {
-    if (!this.canWrite) {
-      throw new Error(`Port is not writable.`)
-    }
+    this.#value = value
 
-    if (this.#buffer.length >= this.#bufferSize) {
-      this.#buffer.shift()
-    }
-
-    const receiveTime = performance.now()
-    this.#buffer.push({ receiveTime, value })
-
-    this.#lastWriteTime = receiveTime
-    this.#lastWriteValue = value
+    this.#lastWriteTime = performance.now()
   }
 
-  receive(value: Value): void {
-    if (!this.canReceive) {
-      throw new Error(`Port can't receive data.`)
-    }
-
-    if (this.#buffer.length >= this.#bufferSize) {
-      this.#buffer.shift()
-    }
-
-    const receiveTime = performance.now()
-    this.#buffer.push({ receiveTime, value })
-
-    this.#lastReceiveTime = receiveTime
-    this.#lastReceiveValue = value
-
-    if (this.canSend) {
-      this.send(value)
-    }
-  }
-
-  send(value: Value) {
-    if (!this.canSend) {
-      throw new Error(`Port can't send data.`)
-    }
-
-    this.#connections.forEach((connection) => {
-      if (!connection.target.canReceive) {
-        return
+  update(): void {
+    // Read the first inbound connection port value that is not clear
+    for (const port of this.#inboundConnections.keys()) {
+      if (port.isClear()) {
+        continue
       }
-      connection.dispatch(value)
-    })
 
-    this.#lastSendTime = performance.now()
-    this.#lastSendValue = value
-  }
+      // Successful signal. Copy it to our value.
+      this.#lastReadTime = performance.now()
+      this.#value = port.value
+      return
+    }
 
-  tick(): void {
-    this.#connections.forEach((connection) => connection.tick())
-
-    // Drop values that have been in the buffer for too long
-    const currentTime = performance.now()
-    this.#buffer = this.#buffer.filter(
-      (item) => currentTime - item.receiveTime < this.#lifeTime
-    )
+    // No one is giving us a signal, despite us being connected to stuff. Clear our current value, as it's stale
+    this.clear()
   }
 
   draw(args: DrawArgs) {
@@ -315,17 +196,22 @@ export default class Port<Value> {
     this.#absolutePixelBounds.height = bounds.height * gridSize
 
     // Also recalculate connections
-    this.#connections.forEach((connection) => connection.recalculateDistance())
+    this.#outboundConnections.forEach((connection) =>
+      connection.recalculateDistance()
+    )
   }
 
   #getFillColor(): string {
-    if (this.lastSendElapsedTime < 100) {
-      const greenRate = 200 + 55 - (55 * this.lastSendElapsedTime) / 100
+    const lastWriteElapsedTime = this.lastWriteElapsedTime
+    const lastReadElapsedTime = this.lastReadElapsedTime
+
+    if (lastWriteElapsedTime < 100) {
+      const greenRate = 200 + 55 - (55 * lastWriteElapsedTime) / 100
       return `rgb(100, ${greenRate.toFixed(2)}, 100)`
     }
 
-    if (this.lastReceiveElapsedTime < 100) {
-      const blueRate = 200 + 55 - (55 * this.lastReceiveElapsedTime) / 100
+    if (lastReadElapsedTime < 100) {
+      const blueRate = 200 + 55 - (55 * lastReadElapsedTime) / 100
       return `rgb(100, 100, ${blueRate.toFixed(2)})`
     }
 
@@ -333,18 +219,6 @@ export default class Port<Value> {
   }
 
   #getValueText(): string {
-    if (this.#lastSendTime > 0 && this.#lastSendTime < 100) {
-      return String(this.#lastSendValue)
-    }
-
-    if (this.#lastReceiveTime > 0 && this.#lastReceiveTime < 100) {
-      return String(this.#lastReceiveValue)
-    }
-
-    if (this.#buffer.length > 0) {
-      return String(this.#buffer[this.#buffer.length - 1].value)
-    }
-
-    return ''
+    return String(this.#value)
   }
 }

@@ -8,7 +8,7 @@ export default class CompoundAndGate extends Circuit {
     nand0;
     nand1;
     out;
-    constructor(x, y, value) {
+    constructor(x, y, value, clearValue) {
         super({
             bounds: new DOMRect(x, y, 11, 3),
             backgroundColor: '#555',
@@ -16,20 +16,17 @@ export default class CompoundAndGate extends Circuit {
         this.value = value;
         this.in0 = new Port({
             position: new DOMPoint(0, 0),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.in1 = new Port({
             position: new DOMPoint(0, 2),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
-        this.nand0 = new NandGate(2, 0, 1);
-        this.nand1 = new NandGate(6, 0, value);
+        this.nand0 = new NandGate(2, 0, value, clearValue);
+        this.nand1 = new NandGate(6, 0, value, clearValue);
         this.out = new Port({
             position: new DOMPoint(10, 1),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.addPort(this.in0);
         this.addPort(this.in1);

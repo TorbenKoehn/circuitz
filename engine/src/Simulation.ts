@@ -1,9 +1,11 @@
 import Circuit from './Circuit.js'
+import Keyboard from './Keyboard.js'
 
 export type SimulationOptions = {
   readonly circuit: Circuit
   readonly canvas?: HTMLCanvasElement
   readonly gridSize?: number
+  readonly scale?: number
   readonly tickInterval?: number
   readonly showFps?: boolean
 }
@@ -26,7 +28,7 @@ export default class Simulation {
   constructor(options: SimulationOptions) {
     this.circuit = options.circuit
     this.canvas = options.canvas ?? document.createElement('canvas')
-    this.#tickInterval = options.tickInterval ?? 100
+    this.#tickInterval = options.tickInterval ?? 1000
     this.#showFps = options.showFps ?? false
   }
 
@@ -50,6 +52,9 @@ export default class Simulation {
       }
 
       requestAnimationFrame(update)
+
+      this.circuit.update()
+
       const currentTime = performance.now()
       const currentSecond = Math.floor(currentTime / 1000)
       const tickDelta = currentTime - lastTickTime
@@ -76,6 +81,12 @@ export default class Simulation {
         context.font = '12px monospace'
         context.fillText(`FPS: ${this.#lastFps}`, 10, 20)
       }
+
+      const downKeys = Keyboard.downKeys
+      context.fillStyle = 'white'
+      context.textAlign = 'left'
+      context.font = '12px monospace'
+      context.fillText(`Down Keys: ${Array.from(downKeys).join(', ')}`, 10, 40)
     }
 
     update()

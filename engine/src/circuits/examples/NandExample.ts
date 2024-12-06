@@ -20,15 +20,20 @@ export default class NandExample extends Circuit {
       backgroundColor: '#666',
     })
 
-    this.in = new Sender(0, 7, 1)
-    this.nandNeither = new NandGate(2, 0, 1)
-    this.nandIn1 = new NandGate(2, 4, 1)
-    this.nandIn2 = new NandGate(2, 8, 1)
-    this.nandBoth = new NandGate(2, 12, 1)
-    this.out0 = new Receiver(6, 1)
-    this.out1 = new Receiver(6, 5)
-    this.out2 = new Receiver(6, 9)
-    this.out3 = new Receiver(6, 13)
+    this.in = new Sender({
+      position: new DOMPoint(0, 7),
+      value: 1,
+      clearValue: 0,
+      keyboardKey: 'KeyS',
+    })
+    this.nandNeither = new NandGate(2, 0, 1, 0)
+    this.nandIn1 = new NandGate(2, 4, 1, 0)
+    this.nandIn2 = new NandGate(2, 8, 1, 0)
+    this.nandBoth = new NandGate(2, 12, 1, 0)
+    this.out0 = new Receiver({ position: new DOMPoint(6, 1), clearValue: 0 })
+    this.out1 = new Receiver({ position: new DOMPoint(6, 5), clearValue: 0 })
+    this.out2 = new Receiver({ position: new DOMPoint(6, 9), clearValue: 0 })
+    this.out3 = new Receiver({ position: new DOMPoint(6, 13), clearValue: 0 })
 
     this.addChild(this.in)
     this.addChild(this.nandNeither)

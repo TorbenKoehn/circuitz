@@ -5,31 +5,29 @@ import CompoundNotGate from '../logic-gates/CompundNotGate.js'
 
 export default class NotExample extends Circuit {
   readonly in: Sender<number>
-  readonly notActive: CompoundNotGate<number>
-  readonly notInactive: CompoundNotGate<number>
-  readonly out0: Receiver<number>
-  readonly out1: Receiver<number>
+  readonly notGate: CompoundNotGate<number>
+  readonly out: Receiver<number>
 
   constructor(x: number, y: number) {
     super({
-      bounds: new DOMRect(x, y, 11, 7),
+      bounds: new DOMRect(x, y, 13, 5),
       backgroundColor: '#666',
     })
 
-    this.in = new Sender(0, 3, 1)
-    this.notActive = new CompoundNotGate(2, 0, 1)
-    this.notInactive = new CompoundNotGate(2, 4, 1)
-    this.out0 = new Receiver(10, 1)
-    this.out1 = new Receiver(10, 5)
+    this.in = new Sender({
+      position: new DOMPoint(1, 2),
+      value: 1,
+      clearValue: 0,
+      keyboardKey: 'KeyS',
+    })
+    this.notGate = new CompoundNotGate(3, 1, 1, 0)
+    this.out = new Receiver({ position: new DOMPoint(11, 2), clearValue: 0 })
 
     this.addChild(this.in)
-    this.addChild(this.notActive)
-    this.addChild(this.notInactive)
-    this.addChild(this.out0)
-    this.addChild(this.out1)
+    this.addChild(this.notGate)
+    this.addChild(this.out)
 
-    this.in.p0.connect(this.notInactive.in)
-    this.notActive.out.connect(this.out0.p0)
-    this.notInactive.out.connect(this.out1.p0)
+    this.in.p0.connect(this.notGate.in)
+    this.notGate.out.connect(this.out.p0)
   }
 }

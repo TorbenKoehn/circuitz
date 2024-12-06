@@ -14,7 +14,7 @@ export default class CompoundMux extends Circuit {
     nand2;
     nand3;
     out;
-    constructor(x, y, value) {
+    constructor(x, y, value, clearValue) {
         super({
             bounds: new DOMRect(x, y, 17, 9),
             backgroundColor: '#555',
@@ -22,29 +22,25 @@ export default class CompoundMux extends Circuit {
         this.value = value;
         this.in0 = new Port({
             position: new DOMPoint(0, 1),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.select = new Port({
             position: new DOMPoint(0, 3),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.in1 = new Port({
             position: new DOMPoint(0, 8),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
-        this.selectRepeat0 = new Repeater(2, 3, 1);
-        this.selectRepeat1 = new Repeater(2, 6, 1);
-        this.nand0 = new NandGate(4, 2, 1);
-        this.nand1 = new NandGate(8, 0, 1);
-        this.nand2 = new NandGate(8, 6, 1);
-        this.nand3 = new NandGate(12, 3, value);
+        this.selectRepeat0 = new Repeater(2, 3, clearValue);
+        this.selectRepeat1 = new Repeater(2, 6, clearValue);
+        this.nand0 = new NandGate(4, 2, value, clearValue);
+        this.nand1 = new NandGate(8, 0, value, clearValue);
+        this.nand2 = new NandGate(8, 6, value, clearValue);
+        this.nand3 = new NandGate(12, 3, value, clearValue);
         this.out = new Port({
             position: new DOMPoint(16, 4),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.addPort(this.in0);
         this.addPort(this.select);

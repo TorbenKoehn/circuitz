@@ -7,6 +7,9 @@ export type CircuitInit = {
   backgroundColor?: string
 }
 
+type PortSet = Set<Port<unknown>>
+type CircuitSet = Set<Circuit>
+
 export default abstract class Circuit {
   #parent: Circuit | undefined = undefined
   #bounds: DOMRect
@@ -15,8 +18,8 @@ export default abstract class Circuit {
   #gridSize: number
   #backgroundColor: string
 
-  #ports: Set<Port<unknown>> = new Set()
-  #children: Set<Circuit> = new Set()
+  #ports: PortSet = new Set()
+  #children: CircuitSet = new Set()
 
   constructor(init: CircuitInit) {
     this.#bounds = init.bounds
@@ -29,24 +32,6 @@ export default abstract class Circuit {
 
   get parent(): Circuit | undefined {
     return this.#parent
-  }
-
-  set parent(value: Circuit | undefined) {
-    if (value && this.#parent && this.#parent !== value) {
-      this.#parent.removeChild(this)
-    }
-
-    if (!value && this.#parent && this.#parent.hasChild(this)) {
-      this.#parent.removeChild(this)
-    }
-
-    if (this.#parent !== value) {
-      this.#parent = value
-    }
-
-    if (value && !value.hasChild(this)) {
-      value.addChild(this)
-    }
   }
 
   get bounds(): Readonly<DOMRect> {
@@ -73,31 +58,36 @@ export default abstract class Circuit {
     return this.#children
   }
 
-  setAllGridSizes(gridSize: number) {
-    this.#gridSize = gridSize
-    this.#children.forEach((child) => child.setAllGridSizes(gridSize))
-    this.recalculateBounds()
-    this.recalculatePixelBounds()
-  }
-
-  clearPorts() {
-    Object.values(this.#ports).forEach((port) => port.clear())
-  }
-
-  hasPort(port: Port<unknown>) {
+  hasPort(port: Port<unknown>): boolean {
     return this.#ports.has(port)
   }
 
-  addPort<State>(port: Port<State>) {
+  addPort<State>(port: Port<State>): void {
     this.#ports.add(port)
-    port.circuit = this
+    port.setCircuit(this)
     port.recalculateBounds()
     port.recalculatePixelBounds()
   }
 
-  removePort(port: Port<unknown>) {
+  addPorts(ports: Iterable<Port<unknown>>): void {
+    for (const port of ports) {
+      this.addPort(port)
+    }
+  }
+
+  removePort(port: Port<unknown>): void {
     this.#ports.delete(port)
-    port.circuit = undefined
+    port.setCircuit(undefined)
+  }
+
+  removePorts(ports: Iterable<Port<unknown>>): void {
+    for (const port of ports) {
+      this.removePort(port)
+    }
+  }
+
+  clearPorts() {
+    Object.values(this.#ports).forEach((port) => port.clear())
   }
 
   hasChild(child: Circuit) {
@@ -106,27 +96,54 @@ export default abstract class Circuit {
 
   addChild(child: Circuit) {
     this.#children.add(child)
-    child.parent = this
+    child.#parent = this
     child.recalculateBounds()
     child.recalculatePixelBounds()
   }
 
-  removeChild(child: Circuit) {
-    this.#children.delete(child)
-    child.parent = undefined
+  addChildren(children: Iterable<Circuit>) {
+    for (const child of children) {
+      this.addChild(child)
+    }
   }
 
-  tickPorts() {
-    this.#ports.forEach((port) => port.tick())
+  removeChild(child: Circuit) {
+    this.#children.delete(child)
+    child.#parent = undefined
+  }
+
+  removeChildren(children: Iterable<Circuit>) {
+    for (const child of children) {
+      this.removeChild(child)
+    }
+  }
+
+  updateChildren() {
+    this.#children.forEach((child) => child.update())
   }
 
   tickChildren() {
     this.#children.forEach((child) => child.tick())
   }
 
+  updatePorts() {
+    this.#ports.forEach((port) => port.update())
+  }
+
+  update() {
+    this.updateChildren()
+    this.updatePorts()
+  }
+
   tick() {
-    this.tickPorts()
     this.tickChildren()
+  }
+
+  setAllGridSizes(gridSize: number) {
+    this.#gridSize = gridSize
+    this.#children.forEach((child) => child.setAllGridSizes(gridSize))
+    this.recalculateBounds()
+    this.recalculatePixelBounds()
   }
 
   drawBackground(args: DrawArgs) {
@@ -144,132 +161,30 @@ export default abstract class Circuit {
     this.#ports.forEach((port) => port.draw(args))
   }
 
-  drawPortConnections(args: DrawArgs) {
-    const context = args.context
-    context.lineWidth = 2
-    for (const port of this.#ports) {
-      for (const connection of port.connections) {
-        const sourcePortBounds = port.absolutePixelBounds
-        const targetPortBounds = connection.target.absolutePixelBounds
-        const targetCircuit = connection.target.circuit
-
-        if (!targetCircuit) {
-          continue
-        }
-
-        const sourceX = sourcePortBounds.x + this.gridSize / 2
-        const sourceY = sourcePortBounds.y + this.gridSize / 2
-        const targetX = targetPortBounds.x + targetCircuit.gridSize / 2
-        const targetY = targetPortBounds.y + targetCircuit.gridSize / 2
-
-        // Draw a small red dot on both ends to signify "connected"
-        context.fillStyle = '#333'
-        context.beginPath()
-        context.arc(sourceX, sourceY, 3, 0, 2 * Math.PI)
-        context.fill()
-        context.beginPath()
-        context.arc(targetX, targetY, 3, 0, 2 * Math.PI)
-        context.fill()
-
-        context.strokeStyle = connection.signals.length > 0 ? '#cfc' : '#ccc'
-        const sourceIsOnRightSideOfCircuit =
-          sourcePortBounds.x > this.absolutePixelBounds.width / 2
-        const preferVertical = !sourceIsOnRightSideOfCircuit
-
-        if (sourceX === targetX || sourceY === targetY) {
-          // Draw straight connection
-          context.beginPath()
-          context.moveTo(sourceX, sourceY)
-          context.lineTo(targetX, targetY)
-          context.stroke()
-        } else if (preferVertical) {
-          // Draw L-shaped connection: vertical first, then horizontal
-          context.beginPath()
-          context.moveTo(sourceX, sourceY)
-          context.lineTo(sourceX, targetY) // Vertical line
-          context.lineTo(targetX, targetY) // Horizontal line
-          context.stroke()
-        } else {
-          // Draw L-shaped connection: horizontal first, then vertical
-          context.beginPath()
-          context.moveTo(sourceX, sourceY)
-          context.lineTo(targetX, sourceY) // Horizontal line
-          context.lineTo(targetX, targetY) // Vertical line
-          context.stroke()
-        }
-
-        const verticalLength = Math.abs(targetY - sourceY)
-        const horizontalLength = Math.abs(targetX - sourceX)
-        const totalLength = verticalLength + horizontalLength
-
-        context.fillStyle = 'green'
-        for (const signal of connection.signals) {
-          const progress = connection.getSignalProgress(signal)
-
-          if (progress >= 1) {
-            continue
-          }
-
-          const traveledDistance = progress * totalLength
-          let x, y
-
-          if (sourceX === targetX) {
-            // Vertical segment
-            x = sourceX
-            y = sourceY + (targetY - sourceY) * progress
-          } else if (sourceY === targetY) {
-            // Horizontal segment
-            x = sourceX + (targetX - sourceX) * progress
-            y = sourceY
-          } else if (preferVertical) {
-            if (traveledDistance <= verticalLength) {
-              // Signal is in the vertical segment
-              const segmentProgress = traveledDistance / verticalLength // Normalize to [0, 1]
-              x = sourceX // X remains constant
-              y = sourceY + (targetY - sourceY) * segmentProgress
-            } else {
-              // Signal is in the horizontal segment
-              const segmentProgress =
-                (traveledDistance - verticalLength) / horizontalLength // Normalize to [0, 1]
-              x = sourceX + (targetX - sourceX) * segmentProgress
-              y = targetY // Y remains constant
-            }
-          } else {
-            if (traveledDistance <= horizontalLength) {
-              // Signal is in the horizontal segment
-              const segmentProgress = traveledDistance / horizontalLength // Normalize to [0, 1]
-              x = sourceX + (targetX - sourceX) * segmentProgress
-              y = sourceY // Y remains constant
-            } else {
-              // Signal is in the vertical segment
-              const segmentProgress =
-                (traveledDistance - horizontalLength) / verticalLength // Normalize to [0, 1]
-              x = targetX // X remains constant
-              y = sourceY + (targetY - sourceY) * segmentProgress
-            }
-          }
-
-          context.beginPath()
-          context.arc(x, y, 4, 0, 2 * Math.PI)
-          context.fill()
-        }
-      }
-    }
+  drawConnections(args: DrawArgs) {
+    this.#ports.forEach((port) =>
+      port.connections.forEach((connection) => connection.draw(args))
+    )
   }
 
   drawChildren(args: DrawArgs) {
     this.#children.forEach((child) => child.draw(args))
   }
 
-  drawChildPortConnections(args: DrawArgs) {
-    this.#children.forEach((child) => child.drawPortConnections(args))
+  drawChildConnections(args: DrawArgs) {
+    this.#children.forEach((child) => child.drawConnections(args))
   }
 
   draw(args: DrawArgs) {
     this.drawBackground(args)
     this.drawChildren(args)
     this.drawPorts(args)
-    this.drawChildPortConnections(args)
+    this.drawChildConnections(args)
+
+    // Only if the are the last parent, draw our own port connections. Otherwise our parent will draw it.
+    if (!this.#parent) {
+      this.drawConnections(args)
+    }
   }
 
   recalculateBounds(): void {

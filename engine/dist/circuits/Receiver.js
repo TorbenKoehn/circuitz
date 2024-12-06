@@ -2,20 +2,18 @@ import Circuit from '../Circuit.js';
 import Port from '../Port.js';
 export default class Receiver extends Circuit {
     p0;
-    constructor(x, y) {
+    constructor(init) {
         super({
-            bounds: new DOMRect(x, y, 1, 1),
+            bounds: new DOMRect(init.position.x, init.position.y, 1, 1),
         });
         this.p0 = new Port({
             position: new DOMPoint(0, 0),
-            access: ['read', 'receive'],
+            clearValue: init.clearValue,
         });
         this.addPort(this.p0);
     }
-    tick() {
-        super.tick();
-        if (this.p0.dataAvailable) {
-            this.p0.readAll();
-        }
+    update() {
+        super.update();
+        this.p0.read();
     }
 }

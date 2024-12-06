@@ -17,7 +17,7 @@ export default class CompoundDemux extends Circuit {
     nand4;
     out0;
     out1;
-    constructor(x, y, value) {
+    constructor(x, y, value, clearValue) {
         super({
             bounds: new DOMRect(x, y, 19, 9),
             backgroundColor: '#555',
@@ -25,32 +25,28 @@ export default class CompoundDemux extends Circuit {
         this.value = value;
         this.in = new Port({
             position: new DOMPoint(0, 0),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
-        this.inRepeat0 = new Repeater(2, 0, 1);
-        this.inRepeat1 = new Repeater(2, 8, 1);
+        this.inRepeat0 = new Repeater(2, 0, clearValue);
+        this.inRepeat1 = new Repeater(2, 8, clearValue);
         this.select = new Port({
             position: new DOMPoint(0, 3),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
-        this.selectRepeat0 = new Repeater(4, 3, 1);
-        this.selectRepeat1 = new Repeater(4, 6, 1);
-        this.nand0 = new NandGate(6, 2, 1);
-        this.nand1 = new NandGate(6, 6, 1);
-        this.nand2 = new NandGate(10, 0, 1);
-        this.nand3 = new NandGate(10, 6, value);
-        this.nand4 = new NandGate(14, 0, value);
+        this.selectRepeat0 = new Repeater(4, 3, clearValue);
+        this.selectRepeat1 = new Repeater(4, 6, clearValue);
+        this.nand0 = new NandGate(6, 2, value, clearValue);
+        this.nand1 = new NandGate(6, 6, value, clearValue);
+        this.nand2 = new NandGate(10, 0, value, clearValue);
+        this.nand3 = new NandGate(10, 6, value, clearValue);
+        this.nand4 = new NandGate(14, 0, value, clearValue);
         this.out0 = new Port({
             position: new DOMPoint(18, 1),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.out1 = new Port({
             position: new DOMPoint(18, 7),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.addPort(this.in);
         this.addPort(this.select);

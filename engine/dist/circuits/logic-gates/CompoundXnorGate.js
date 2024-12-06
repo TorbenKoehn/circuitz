@@ -16,7 +16,7 @@ export default class CompoundXnorGate extends Circuit {
     nand3;
     nand4;
     out;
-    constructor(x, y, value) {
+    constructor(x, y, value, clearValue) {
         super({
             bounds: new DOMRect(x, y, 19, 11),
             backgroundColor: '#555',
@@ -24,27 +24,24 @@ export default class CompoundXnorGate extends Circuit {
         this.value = value;
         this.in0 = new Port({
             position: new DOMPoint(0, 1),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.in1 = new Port({
             position: new DOMPoint(0, 5),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
-        this.in1Repeat0 = new Repeater(2, 1, 1);
-        this.in1Repeat1 = new Repeater(2, 8, 1);
-        this.in2Repeat0 = new Repeater(4, 5, 1);
-        this.in2Repeat1 = new Repeater(4, 10, 1);
-        this.nand0 = new NandGate(6, 0, 1);
-        this.nand1 = new NandGate(6, 4, 1);
-        this.nand2 = new NandGate(10, 2, 1);
-        this.nand3 = new NandGate(10, 8, 1);
-        this.nand4 = new NandGate(14, 5, value);
+        this.in1Repeat0 = new Repeater(2, 1, clearValue);
+        this.in1Repeat1 = new Repeater(2, 8, clearValue);
+        this.in2Repeat0 = new Repeater(4, 5, clearValue);
+        this.in2Repeat1 = new Repeater(4, 10, clearValue);
+        this.nand0 = new NandGate(6, 0, value, clearValue);
+        this.nand1 = new NandGate(6, 4, value, clearValue);
+        this.nand2 = new NandGate(10, 2, value, clearValue);
+        this.nand3 = new NandGate(10, 8, value, clearValue);
+        this.nand4 = new NandGate(14, 5, value, clearValue);
         this.out = new Port({
             position: new DOMPoint(18, 6),
-            access: ['receive', 'send'],
-            lifeTime: 200,
+            clearValue,
         });
         this.addPort(this.in0);
         this.addPort(this.in1);

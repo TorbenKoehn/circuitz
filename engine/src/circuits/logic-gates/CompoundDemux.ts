@@ -1,26 +1,25 @@
 import Circuit from '../../Circuit.js'
 import Port from '../../Port.js'
-import { DrawArgs } from '../../utils.js'
 import NandGate from './NandGate.js'
 import Repeater from './../Repeater.js'
 
 export default class CompoundDemux<Value> extends Circuit {
   readonly value: Value;
-  readonly in: Port<number>
-  readonly inRepeat0: Repeater<number>
-  readonly inRepeat1: Repeater<number>
-  readonly select: Port<number>
-  readonly selectRepeat0: Repeater<number>
-  readonly selectRepeat1: Repeater<number>
-  readonly nand0: NandGate<number>
-  readonly nand1: NandGate<number>
-  readonly nand2: NandGate<number>
+  readonly in: Port<Value>
+  readonly inRepeat0: Repeater<Value>
+  readonly inRepeat1: Repeater<Value>
+  readonly select: Port<Value>
+  readonly selectRepeat0: Repeater<Value>
+  readonly selectRepeat1: Repeater<Value>
+  readonly nand0: NandGate<Value>
+  readonly nand1: NandGate<Value>
+  readonly nand2: NandGate<Value>
   readonly nand3: NandGate<Value>
   readonly nand4: NandGate<Value>
   readonly out0: Port<Value>
   readonly out1: Port<Value>
 
-  constructor(x: number, y: number, value: Value) {
+  constructor(x: number, y: number, value: Value, clearValue: Value) {
     super({
       bounds: new DOMRect(x, y, 19, 9),
       backgroundColor: '#555',
@@ -29,32 +28,28 @@ export default class CompoundDemux<Value> extends Circuit {
     this.value = value
     this.in = new Port({
       position: new DOMPoint(0, 0),
-      access: ['receive', 'send'],
-      lifeTime: 200,
+      clearValue,
     })
-    this.inRepeat0 = new Repeater(2, 0, 1)
-    this.inRepeat1 = new Repeater(2, 8, 1)
+    this.inRepeat0 = new Repeater(2, 0, clearValue)
+    this.inRepeat1 = new Repeater(2, 8, clearValue)
     this.select = new Port({
       position: new DOMPoint(0, 3),
-      access: ['receive', 'send'],
-      lifeTime: 200,
+      clearValue,
     })
-    this.selectRepeat0 = new Repeater(4, 3, 1)
-    this.selectRepeat1 = new Repeater(4, 6, 1)
-    this.nand0 = new NandGate(6, 2, 1)
-    this.nand1 = new NandGate(6, 6, 1)
-    this.nand2 = new NandGate(10, 0, 1)
-    this.nand3 = new NandGate(10, 6, value)
-    this.nand4 = new NandGate(14, 0, value)
+    this.selectRepeat0 = new Repeater(4, 3, clearValue)
+    this.selectRepeat1 = new Repeater(4, 6, clearValue)
+    this.nand0 = new NandGate(6, 2, value, clearValue)
+    this.nand1 = new NandGate(6, 6, value, clearValue)
+    this.nand2 = new NandGate(10, 0, value, clearValue)
+    this.nand3 = new NandGate(10, 6, value, clearValue)
+    this.nand4 = new NandGate(14, 0, value, clearValue)
     this.out0 = new Port({
       position: new DOMPoint(18, 1),
-      access: ['receive', 'send'],
-      lifeTime: 200,
+      clearValue,
     })
     this.out1 = new Port({
       position: new DOMPoint(18, 7),
-      access: ['receive', 'send'],
-      lifeTime: 200,
+      clearValue,
     })
     this.addPort(this.in)
     this.addPort(this.select)

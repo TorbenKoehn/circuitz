@@ -1,23 +1,22 @@
 import Circuit from '../../Circuit.js'
 import Port from '../../Port.js'
-import { DrawArgs } from '../../utils.js'
 import NandGate from './NandGate.js'
 import Repeater from './../Repeater.js'
 
 export default class CompoundMux<Value> extends Circuit {
   readonly value: Value
-  readonly in0: Port<number>
-  readonly select: Port<number>
-  readonly in1: Port<number>
-  readonly selectRepeat0: Repeater<number>
-  readonly selectRepeat1: Repeater<number>
-  readonly nand0: NandGate<number>
-  readonly nand1: NandGate<number>
-  readonly nand2: NandGate<number>
+  readonly in0: Port<Value>
+  readonly select: Port<Value>
+  readonly in1: Port<Value>
+  readonly selectRepeat0: Repeater<Value>
+  readonly selectRepeat1: Repeater<Value>
+  readonly nand0: NandGate<Value>
+  readonly nand1: NandGate<Value>
+  readonly nand2: NandGate<Value>
   readonly nand3: NandGate<Value>
   readonly out: Port<Value>
 
-  constructor(x: number, y: number, value: Value) {
+  constructor(x: number, y: number, value: Value, clearValue: Value) {
     super({
       bounds: new DOMRect(x, y, 17, 9),
       backgroundColor: '#555',
@@ -26,29 +25,25 @@ export default class CompoundMux<Value> extends Circuit {
     this.value = value
     this.in0 = new Port({
       position: new DOMPoint(0, 1),
-      access: ['receive', 'send'],
-      lifeTime: 200,
+      clearValue,
     })
     this.select = new Port({
       position: new DOMPoint(0, 3),
-      access: ['receive', 'send'],
-      lifeTime: 200,
+      clearValue,
     })
     this.in1 = new Port({
       position: new DOMPoint(0, 8),
-      access: ['receive', 'send'],
-      lifeTime: 200,
+      clearValue,
     })
-    this.selectRepeat0 = new Repeater(2, 3, 1)
-    this.selectRepeat1 = new Repeater(2, 6, 1)
-    this.nand0 = new NandGate(4, 2, 1)
-    this.nand1 = new NandGate(8, 0, 1)
-    this.nand2 = new NandGate(8, 6, 1)
-    this.nand3 = new NandGate(12, 3, value)
+    this.selectRepeat0 = new Repeater(2, 3, clearValue)
+    this.selectRepeat1 = new Repeater(2, 6, clearValue)
+    this.nand0 = new NandGate(4, 2, value, clearValue)
+    this.nand1 = new NandGate(8, 0, value, clearValue)
+    this.nand2 = new NandGate(8, 6, value, clearValue)
+    this.nand3 = new NandGate(12, 3, value, clearValue)
     this.out = new Port({
       position: new DOMPoint(16, 4),
-      access: ['receive', 'send'],
-      lifeTime: 200,
+      clearValue,
     })
     this.addPort(this.in0)
     this.addPort(this.select)

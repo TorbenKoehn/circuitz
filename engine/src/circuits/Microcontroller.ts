@@ -2,6 +2,12 @@ import Circuit from '../Circuit.js'
 import Port from '../Port.js'
 import { DrawArgs } from '../utils.js'
 
+export type MicrocontrollerInit = {
+  readonly position: DOMPoint
+  readonly stack?: Instruction[]
+  readonly tickInterval?: number
+}
+
 export type Instruction = {
   label?: string
   command: string
@@ -21,28 +27,43 @@ export default class Microcontroller extends Circuit {
     slp: number
   }
 
+  readonly latches: {
+    in: {
+      p0: number
+      p1: number
+      p2: number
+      p3: number
+    }
+    out: {
+      p0: number
+      p1: number
+      p2: number
+      p3: number
+    }
+  }
+
   readonly stack: Instruction[]
 
-  constructor(x: number, y: number, stack?: Instruction[]) {
+  constructor(init: MicrocontrollerInit) {
     super({
-      bounds: new DOMRect(x, y, 10, 10),
+      bounds: new DOMRect(init.position.x, init.position.y, 10, 10),
     })
 
     this.p0 = new Port({
       position: new DOMPoint(0, 0),
-      access: ['read', 'receive', 'send'],
+      clearValue: 0,
     })
     this.p1 = new Port({
       position: new DOMPoint(0, 9),
-      access: ['read', 'receive', 'send'],
+      clearValue: 0,
     })
     this.p2 = new Port({
       position: new DOMPoint(9, 0),
-      access: ['read', 'receive', 'send'],
+      clearValue: 0,
     })
     this.p3 = new Port({
       position: new DOMPoint(9, 9),
-      access: ['read', 'receive', 'send'],
+      clearValue: 0,
     })
 
     this.registers = {
@@ -52,12 +73,24 @@ export default class Microcontroller extends Circuit {
       slp: 0,
     }
 
-    this.stack = stack ?? []
+    this.latches = {
+      in: {
+        p0: 0,
+        p1: 0,
+        p2: 0,
+        p3: 0,
+      },
+      out: {
+        p0: 0,
+        p1: 0,
+        p2: 0,
+        p3: 0,
+      },
+    }
 
-    this.addPort(this.p0)
-    this.addPort(this.p1)
-    this.addPort(this.p2)
-    this.addPort(this.p3)
+    this.stack = init.stack ?? []
+
+    this.addPorts([this.p0, this.p1, this.p2, this.p3])
   }
 
   get zeroFlag() {
@@ -124,14 +157,7 @@ export default class Microcontroller extends Circuit {
 
     const { command, args } = this.stack[this.registers.isp]
 
-    const ports = {
-      p0: this.p0,
-      p1: this.p1,
-      p2: this.p2,
-      p3: this.p3,
-    }
-
-    const getArg = (index: number) => {
+    const readArg = (index: number) => {
       if (index >= args.length) {
         throw new Error(
           `Missing argument ${index} for command ${command} at stack item ${this.registers.isp}`
@@ -141,8 +167,8 @@ export default class Microcontroller extends Circuit {
       const value =
         args[index] in this.registers
           ? this.registers[args[index] as keyof typeof this.registers]
-          : args[index] in ports
-          ? ports[args[index] as keyof typeof ports].read()
+          : args[index] in this.latches.in
+          ? this.latches.in[args[index] as keyof typeof this.latches.in]
           : args[index]
       return parseInt(String(value))
     }
@@ -156,42 +182,42 @@ export default class Microcontroller extends Circuit {
           throw new Error(`Missing arguments for command ${command}`)
         }
 
-        const value = getArg(0)
+        const value = readArg(0)
         const target = args[1]
 
         if (target in this.registers) {
           // Write to register
           this.registers[target as keyof typeof this.registers] = value
-        } else if (target in ports) {
-          // Write to port
-          ports[target as keyof typeof ports].send(value)
+        } else if (target in this.latches.out) {
+          // Write to latch
+          this.latches.out[target as keyof typeof this.latches.out] = value
         } else {
           throw new Error(`Target ${target} is not a register or port`)
         }
         this.advance()
         break
       case 'add':
-        this.registers.acc += getArg(0)
+        this.registers.acc += readArg(0)
         this.advance()
         break
       case 'mul':
-        this.registers.acc *= getArg(0)
+        this.registers.acc *= readArg(0)
         this.advance()
         break
       case 'sub':
-        this.registers.acc -= getArg(0)
+        this.registers.acc -= readArg(0)
         this.registers.isp++
         break
       case 'div':
-        this.registers.acc /= getArg(0)
+        this.registers.acc /= readArg(0)
         this.advance()
         break
       case 'mod':
-        this.registers.acc %= getArg(0)
+        this.registers.acc %= readArg(0)
         this.advance()
         break
       case 'cmp':
-        const delta = getArg(0) - getArg(1)
+        const delta = readArg(0) - readArg(1)
         this.zeroFlag = delta === 0
         this.signFlag = delta < 0
         this.advance()
@@ -274,22 +300,79 @@ export default class Microcontroller extends Circuit {
           throw new Error(`Missing argument 0 for command ${command}`)
         }
 
-        this.registers.slp = getArg(0)
+        this.registers.slp = readArg(0)
         break
-      case 'slx':
-        if (!args[0]) {
-          throw new Error(`Missing argument 0 for command ${command}`)
-        }
-
-        if (!(args[0] in ports)) {
-          throw new Error(`Port ${args[0]} not found`)
-        }
-
-        const port = ports[args[0] as keyof typeof ports]
-        if (port.dataAvailable) {
-          this.advance()
-        }
+      case 'rs':
+        this.registers.acc = 0
+        this.registers.flg = 0
+        this.registers.isp = 0
+        this.registers.slp = 0
+        this.latches.in.p0 = 0
+        this.latches.in.p1 = 0
+        this.latches.in.p2 = 0
+        this.latches.in.p3 = 0
+        this.latches.out.p0 = 0
+        this.latches.out.p1 = 0
+        this.latches.out.p2 = 0
+        this.latches.out.p3 = 0
+        this.advance()
         break
+      case 'rsr':
+        this.registers.acc = 0
+        this.registers.flg = 0
+        this.registers.isp = 0
+        this.registers.slp = 0
+        this.advance()
+        break
+      case 'rsp':
+        this.latches.in.p0 = 0
+        this.latches.in.p1 = 0
+        this.latches.in.p2 = 0
+        this.latches.in.p3 = 0
+        this.latches.out.p0 = 0
+        this.latches.out.p1 = 0
+        this.latches.out.p2 = 0
+        this.latches.out.p3 = 0
+        this.advance()
+        break
+      default:
+        throw new Error(`Unknown command ${command}`)
+    }
+  }
+
+  update(): void {
+    super.update()
+
+    if (!this.p0.isClear()) {
+      this.latches.in.p0 = this.p0.read()
+    }
+
+    if (this.latches.out.p0 !== this.p0.clearValue) {
+      this.p0.write(this.latches.out.p0)
+    }
+
+    if (!this.p1.isClear()) {
+      this.latches.in.p1 = this.p1.read()
+    }
+
+    if (this.latches.out.p1 !== this.p1.clearValue) {
+      this.p1.write(this.latches.out.p1)
+    }
+
+    if (!this.p2.isClear()) {
+      this.latches.in.p2 = this.p2.read()
+    }
+
+    if (this.latches.out.p2 !== this.p2.clearValue) {
+      this.p2.write(this.latches.out.p2)
+    }
+
+    if (!this.p3.isClear()) {
+      this.latches.in.p3 = this.p3.read()
+    }
+
+    if (this.latches.out.p3 !== this.p3.clearValue) {
+      this.p3.write(this.latches.out.p3)
     }
   }
 
@@ -305,6 +388,7 @@ export default class Microcontroller extends Circuit {
     })
 
     // Draw code
+    context.textAlign = 'left'
     context.font = '12px monospace'
     codeLines.forEach((line, index) => {
       context.fillStyle = index === this.registers.isp ? 'lime' : 'white'
@@ -343,6 +427,26 @@ export default class Microcontroller extends Circuit {
       `slp: ${this.registers.slp}`,
       bounds.x + 6 * this.gridSize,
       bounds.y + this.gridSize + 48
+    )
+    context.fillText(
+      `p0: I:${this.latches.in.p0} O:${this.latches.out.p0}`,
+      bounds.x + 6 * this.gridSize,
+      bounds.y + this.gridSize + 60
+    )
+    context.fillText(
+      `p1: I:${this.latches.in.p1} O:${this.latches.out.p1}`,
+      bounds.x + 6 * this.gridSize,
+      bounds.y + this.gridSize + 72
+    )
+    context.fillText(
+      `p2: I:${this.latches.in.p2} O:${this.latches.out.p2}`,
+      bounds.x + 6 * this.gridSize,
+      bounds.y + this.gridSize + 84
+    )
+    context.fillText(
+      `p3: I:${this.latches.in.p3} O:${this.latches.out.p3}`,
+      bounds.x + 6 * this.gridSize,
+      bounds.y + this.gridSize + 96
     )
 
     // Draw port names next to ports
